@@ -77,7 +77,32 @@ echo "<br>" . "<br>";
 
 
 
+
+
+
+
 function mining_pool_hub_api_call($cmd, $req = array()) {
+
+    $coin[0] = "digibyte-skein";
+    $coin[1] = "electroneum";
+    $coin[2] = "vertcoin";
+    $coin[3] = "zcash";
+
+    $coinName[0] = "DGB";
+    $coinName[1] = "ETN";
+    $coinName[2] = "VTC";
+    $coinName[3] = "ZEC";
+
+
+
+    $arrLength = count($coin);
+
+    for ($i = 0; $i < $arrLength; $i++) {
+
+
+
+
+
     // Fill these in from your API Keys page
     // erase file_get_contents and replace with api key in quotes
     $public_key = file_get_contents('./api keys/miningpoolhubapikey.txt');
@@ -90,6 +115,14 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
     $req['key'] = $public_key;
     $req['format'] = 'xml'; //supported values are json and xml
 
+
+
+
+
+
+
+
+
     // Generate the query string
     $post_data = http_build_query($req, '', '&');
 
@@ -97,16 +130,16 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
     $hmac = hash_hmac('sha512', $post_data, $private_key);
 
     // Create cURL handle and initialize (if needed)
-    static $ch = NULL;
-    if ($ch === NULL) {
+
+
 
         // 'https://miningpoolhub.com/index.php?page=api&action=getuserbalance&api_key=' . $private_key . '&id=' . $user_id
 
-        $ch = curl_init('https://zcash.miningpoolhub.com/index.php?page=api&action=getuserbalance&api_key=' . $private_key . '&id=' . $user_id);
+        $ch = curl_init('https://' . $coin[$i] . '.miningpoolhub.com/index.php?page=api&action=getuserbalance&api_key=' . $private_key . '&id=' . $user_id);
         curl_setopt($ch, CURLOPT_FAILONERROR, TRUE);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-    }
+
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('HMAC: '.$hmac));
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
 
@@ -132,15 +165,15 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
             // fwrite($fp, json_encode($dec));
             // fclose($fp);
 
-            $zcashConfirmed = $dec['getuserbalance']['data']['confirmed'];
-            $zcashUnconfirmed = $dec['getuserbalance']['data']['unconfirmed'];
+            $Confirmed = $dec['getuserbalance']['data']['confirmed'];
+            $Unconfirmed = $dec['getuserbalance']['data']['unconfirmed'];
 
 
-            echo "ZEC confirmed" . " ". $zcashConfirmed . "<br>" . "ZEC unconfirmed" . " " . $zcashUnconfirmed . "<br>" . "<br>";
+            echo $coinName[$i] . " confirmed" . " ". $Confirmed . "<br>" . $coinName[$i] . " unconfirmed" . " " . $Unconfirmed . "<br>" . "<br>";
 
 
 
-            return $dec;
+            // return $dec;
 
 
         } else {
@@ -157,6 +190,8 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
         return array('error' => 'cURL error: '.curl_error($ch));
     }
 
+
+    }
 
 }
 
