@@ -15,7 +15,15 @@
 
 <?php
 
+static $coinpaymentsZECBalance = 0;
+static $coinpaymentsTotalUSD = 0;
 
+static $miningpoolhubUSD = Array ();
+static $miningpoolhubUSDUnconfirmed = Array ();
+
+
+static $priceInUSD = Array ();
+static $totalInUSD = 0;
 
 
 
@@ -30,6 +38,7 @@ function coinpayments_api_call($cmd, $req = array()) {
     $req['cmd'] = $cmd;
     $req['key'] = $public_key;
     $req['format'] = 'json'; //supported values are json and xml
+
 
     // Generate the query string
     $post_data = http_build_query($req, '', '&');
@@ -59,7 +68,19 @@ function coinpayments_api_call($cmd, $req = array()) {
             $dec = json_decode($data, TRUE);
         }
         if ($dec !== NULL && count($dec)) {
-            return $dec;
+
+
+            $coin = key($dec['result']);
+            $GLOBALS['coinpaymentsZECBalance'] = $dec['result'][$coin]['balancef'];
+
+
+
+            echo $coin . " " . $GLOBALS['coinpaymentsZECBalance'] .  "<br>" . "<br>";
+
+
+            // return $dec;
+
+
         } else {
             // If you are using PHP 5.5.0 or higher you can use json_last_error_msg() for a better error message
             return array('error' => 'Unable to parse JSON result ('.json_last_error().')');
@@ -72,12 +93,81 @@ function coinpayments_api_call($cmd, $req = array()) {
 //Get current coin exchange rates
 print_r(coinpayments_api_call('balances'));
 
+function coinpayments_api_call_rates($cmd, $req = array()) {
+    // Fill these in from your API Keys page
+    // erase file_get_contents and replace with api key in quotes
+    $public_key = file_get_contents('./api keys/coinpaymentspublicapikey.txt');
+    $private_key = file_get_contents('./api keys/coinpaymentsprivateapikey.txt');
+
+    // Set the API command and required fields
+    $req['version'] = 1;
+    $req['cmd'] = $cmd;
+    $req['key'] = $public_key;
+    $req['format'] = 'json'; //supported values are json and xml
+
+
+    // Generate the query string
+    $post_data = http_build_query($req, '', '&');
+
+    // Calculate the HMAC signature on the POST data
+    $hmac = hash_hmac('sha512', $post_data, $private_key);
+
+    // Create cURL handle and initialize (if needed)
+    static $ch = NULL;
+    if ($ch === NULL) {
+        $ch = curl_init('https://www.coinpayments.net/api.php');
+        curl_setopt($ch, CURLOPT_FAILONERROR, TRUE);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('HMAC: '.$hmac));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+
+    // Execute the call and close cURL handle
+    $data = curl_exec($ch);
+    // Parse and return data if successful.
+    if ($data !== FALSE) {
+        if (PHP_INT_SIZE < 8 && version_compare(PHP_VERSION, '5.4.0') >= 0) {
+            // We are on 32-bit PHP, so use the bigint as string option. If you are using any API calls with Satoshis it is highly NOT recommended to use 32-bit PHP
+            $dec = json_decode($data, TRUE, 512, JSON_BIGINT_AS_STRING);
+        } else {
+            $dec = json_decode($data, TRUE);
+        }
+        if ($dec !== NULL && count($dec)) {
+
+
+            $coin = $dec['result']['ZEC']['name'];
+
+            $ZECRate = $dec['result']['ZEC']['rate_btc'];
+            $USDRate = $dec['result']['USD']['rate_btc'];
+
+            $totalZECInBTC = $GLOBALS['coinpaymentsZECBalance'] * $ZECRate;
+            $totalZECInUSD = $totalZECInBTC / $USDRate;
+
+            $GLOBALS['coinpaymentsTotalUSD'] = $totalZECInUSD;
+
+
+
+            echo $coin . " in USD " . $GLOBALS['coinpaymentsTotalUSD'] .  "<br>" . "<br>";
+
+
+            // return $dec;
+
+
+        } else {
+            // If you are using PHP 5.5.0 or higher you can use json_last_error_msg() for a better error message
+            return array('error' => 'Unable to parse JSON result ('.json_last_error().')');
+        }
+    } else {
+        return array('error' => 'cURL error: '.curl_error($ch));
+    }
+}
+
+
+
+print_r(coinpayments_api_call_rates('rates'));
+
 echo "<br>" . "<br>";
-
-
-
-
-
 
 
 
@@ -93,7 +183,7 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
     $coinName[2] = "VTC";
     $coinName[3] = "ZEC";
 
-
+    // global $miningpoolhubUSD;
 
     $arrLength = count($coin);
 
@@ -114,12 +204,6 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
     $req['cmd'] = $cmd;
     $req['key'] = $public_key;
     $req['format'] = 'xml'; //supported values are json and xml
-
-
-
-
-
-
 
 
 
@@ -168,8 +252,11 @@ function mining_pool_hub_api_call($cmd, $req = array()) {
             $Confirmed = $dec['getuserbalance']['data']['confirmed'];
             $Unconfirmed = $dec['getuserbalance']['data']['unconfirmed'];
 
+            $GLOBALS['miningpoolhubUSD'][$coinName[$i]] = $Confirmed;
+            $GLOBALS['miningpoolhubUSDUnconfirmed'][$coinName[$i]] = $Unconfirmed;
 
-            echo $coinName[$i] . " confirmed" . " ". $Confirmed . "<br>" . $coinName[$i] . " unconfirmed" . " " . $Unconfirmed . "<br>" . "<br>";
+
+            echo $coinName[$i] . " confirmed" . " ". $GLOBALS['miningpoolhubUSD'][$coinName[$i]] . "<br>" . $coinName[$i] . " unconfirmed" . " " . $GLOBALS['miningpoolhubUSDUnconfirmed'][$coinName[$i]] . "<br>" . "<br>";
 
 
 
@@ -201,7 +288,112 @@ print_r(mining_pool_hub_api_call('test'));
 
 
 
+function cryptocompare_api_call($cmd, $req = array()) {
+    // Fill these in from your API Keys page
+    // erase file_get_contents and replace with api key in quotes
+    $public_key = file_get_contents('./api keys/coinpaymentspublicapikey.txt');
+    $private_key = file_get_contents('./api keys/coinpaymentsprivateapikey.txt');
 
+    // Set the API command and required fields
+    $req['version'] = 1;
+    $req['cmd'] = $cmd;
+    $req['key'] = $public_key;
+    $req['format'] = 'json'; //supported values are json and xml
+
+
+    // Generate the query string
+    $post_data = http_build_query($req, '', '&');
+
+    // Calculate the HMAC signature on the POST data
+    $hmac = hash_hmac('sha512', $post_data, $private_key);
+
+    // Create cURL handle and initialize (if needed)
+    static $ch = NULL;
+    if ($ch === NULL) {
+        $ch = curl_init('https://min-api.cryptocompare.com/data/pricemulti?fsyms=DGB,ETN,VTC,ZEC,XRP&tsyms=USD');
+        curl_setopt($ch, CURLOPT_FAILONERROR, TRUE);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('HMAC: '.$hmac));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+
+    // Execute the call and close cURL handle
+    $data = curl_exec($ch);
+    // Parse and return data if successful.
+    if ($data !== FALSE) {
+        if (PHP_INT_SIZE < 8 && version_compare(PHP_VERSION, '5.4.0') >= 0) {
+            // We are on 32-bit PHP, so use the bigint as string option. If you are using any API calls with Satoshis it is highly NOT recommended to use 32-bit PHP
+            $dec = json_decode($data, TRUE, 512, JSON_BIGINT_AS_STRING);
+        } else {
+            $dec = json_decode($data, TRUE);
+        }
+        if ($dec !== NULL && count($dec)) {
+
+
+
+
+
+           $GLOBALS['priceInUSD[DGB]'] = $dec['DGB']['USD'];
+           $GLOBALS['priceInUSD[ETN]'] = $dec['ETN']['USD'];
+           $GLOBALS['priceInUSD[VTC]'] = $dec['VTC']['USD'];
+           $GLOBALS['priceInUSD[ZEC]'] = $dec['ZEC']['USD'];
+           // $GLOBALS['priceInUSD[XRP]'] = $dec['XRP']['USD'];
+
+            $localPriceInUSD['DGB'] = $GLOBALS['priceInUSD[DGB]'];
+            $localPriceInUSD['ETN'] = $GLOBALS['priceInUSD[ETN]'];
+            $localPriceInUSD['VTC'] = $GLOBALS['priceInUSD[VTC]'];
+            $localPriceInUSD['ZEC'] = $GLOBALS['priceInUSD[ZEC]'];
+            // $localPriceInUSD['XRP'] = $GLOBALS['priceInUSD[XRP]'];
+
+            $localMiningpoolhubUSD['DGB'] = $GLOBALS['miningpoolhubUSD']['DGB'];
+            $localMiningpoolhubUSD['ETN'] = $GLOBALS['miningpoolhubUSD']['ETN'];
+            $localMiningpoolhubUSD['VTC'] = $GLOBALS['miningpoolhubUSD']['VTC'];
+            $localMiningpoolhubUSD['ZEC'] = $GLOBALS['miningpoolhubUSD']['ZEC'];
+
+
+
+
+
+
+
+            foreach($localPriceInUSD as $x => $x_value) {
+
+
+
+
+
+                 $localPriceInUSD[$x] = $x_value * $localMiningpoolhubUSD[$x];
+
+
+                echo $localPriceInUSD[$x];
+                echo "<br>";
+            }
+
+
+
+
+
+           // $GLOBALS['totalINUSD'] = $GLOBALS['totalINUSD'] +
+
+
+
+
+
+            // return $dec;
+
+
+        } else {
+            // If you are using PHP 5.5.0 or higher you can use json_last_error_msg() for a better error message
+            return array('error' => 'Unable to parse JSON result ('.json_last_error().')');
+        }
+    } else {
+        return array('error' => 'cURL error: '.curl_error($ch));
+    }
+}
+
+
+cryptocompare_api_call('test');
 
 
 
