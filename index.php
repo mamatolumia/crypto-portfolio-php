@@ -15,15 +15,25 @@
 
 <?php
 
-static $coinpaymentsZECBalance = 0;
-static $coinpaymentsTotalUSD = 0;
+$coinpaymentsZECBalance = 0;
+$coinpaymentsTotalUSD = 0;
 
-static $miningpoolhubUSD = Array ();
-static $miningpoolhubUSDUnconfirmed = Array ();
+$miningpoolhubUSD = Array ();
+$miningpoolhubUSDUnconfirmed = Array ();
 
 
-static $priceInUSD = Array ();
-static $totalInUSD = 0;
+$priceInUSD = Array ();
+
+$coinInUSDInMiningpoolhub = Array ();
+
+$coinInUSDInMiningpoolhub['DGB'] = 0;
+$coinInUSDInMiningpoolhub['ETN'] = 0;
+$coinInUSDInMiningpoolhub['VTC'] = 0;
+$coinInUSDInMiningpoolhub['ZEC'] = 0;
+
+$totalInUSDInMiningpoolhub = 0;
+
+$totalInUSD = 0;
 
 
 
@@ -333,6 +343,7 @@ function cryptocompare_api_call($cmd, $req = array()) {
 
 
 
+           $localcoinInUSDInMiningpoolhub = Array ("DGB"=>0, "ETN"=>0, "VTC"=>0, "ZEC"=>0);
 
            $GLOBALS['priceInUSD[DGB]'] = $dec['DGB']['USD'];
            $GLOBALS['priceInUSD[ETN]'] = $dec['ETN']['USD'];
@@ -351,7 +362,10 @@ function cryptocompare_api_call($cmd, $req = array()) {
             $localMiningpoolhubUSD['VTC'] = $GLOBALS['miningpoolhubUSD']['VTC'];
             $localMiningpoolhubUSD['ZEC'] = $GLOBALS['miningpoolhubUSD']['ZEC'];
 
-
+            // $localcoinInUSDInMiningpoolhub['DGB'] = $GLOBALS['coinInUSDInMiningpoolhub[DGB]'];
+            // $localcoinInUSDInMiningpoolhub['ETN'] = $GLOBALS['coinInUSDInMiningpoolhub[ETN]'];
+            // $localcoinInUSDInMiningpoolhub['VTC'] = $GLOBALS['coinInUSDInMiningpoolhub[VTC]'];
+            // $localcoinInUSDInMiningpoolhub['ZEC'] = $GLOBALS['coinInUSDInMiningpoolhub[ZEC]'];
 
 
 
@@ -362,19 +376,26 @@ function cryptocompare_api_call($cmd, $req = array()) {
 
 
 
+                $localcoinInUSDInMiningpoolhub[$x] = $x_value * $GLOBALS['miningpoolhubUSD'][$x] . "<br>";
+                echo $localcoinInUSDInMiningpoolhub[$x];
 
-                 $localPriceInUSD[$x] = $x_value * $localMiningpoolhubUSD[$x];
 
 
-                echo $localPriceInUSD[$x];
-                echo "<br>";
+                $GLOBALS['totalInUSDInMiningpoolhub'] = $GLOBALS['totalInUSDInMiningpoolhub'] + ($x_value * $GLOBALS['miningpoolhubUSD'][$x]);
+
+                // echo $GLOBALS['totalInUSD'][$x];
+                // $localPriceInUSD[$x] = $x_value * $localMiningpoolhubUSD[$x];
+
+
+                // echo $localPriceInUSD[$x];
+                // echo "<br>";
             }
 
 
 
 
 
-           // $GLOBALS['totalINUSD'] = $GLOBALS['totalINUSD'] +
+             echo $GLOBALS['totalInUSDInMiningpoolhub'];
 
 
 
